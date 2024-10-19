@@ -1,0 +1,42 @@
+services:
+  chifunds: 
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: chifunds
+    ports: 
+      - "8000:8000"
+    depends_on:
+      - postgres
+    environment: 
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_HOST: ${DB_HOST}
+      GOOGLE_KEY: ${GOOGLE_KEY}
+      GOOGLE_SECRET: ${GOOGLE_SECRET}
+      SECRET_KEY: ${SECRET_KEY}
+      CHIMOENY_API_KEY: ${CHIMOENY_API_KEY}
+    networks:
+      - chifunds
+
+  postgres:
+    image: postgres:alpine
+    container_name: chifunds-db
+    environment:
+      POSTGRES_USER: ${DB_USER}      
+      POSTGRES_PASSWORD: ${DB_PASSWORD}  
+      POSTGRES_DB: ${DB_NAME}       
+    ports:
+      - "5432:5432"                 
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  
+    networks:
+      - chifunds
+
+volumes:
+  postgres_data:                    
+
+networks:
+  chifunds:
+    driver: bridge  
