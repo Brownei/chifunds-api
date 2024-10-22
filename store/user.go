@@ -1,4 +1,4 @@
-package service
+package store
 
 import (
 	"bytes"
@@ -17,22 +17,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Store struct {
+type UserStore struct {
 	db *sql.DB
 }
 
-var (
-	users []types.User
-)
-
-func NewStore(db *sql.DB) *Store {
-	return &Store{
-		db: db,
+func (s *UserStore) GetUsersByEmail(ctx context.Context, email string, forLogin bool) (*types.User, error) {
+	var query string
+	if forLogin == true {
+		query = "SELECT id, email, first_name, last_name, profile_picture, email_verified, password FROM \"user\" WHERE email = $1"
+	} else {
+		query = "SELECT id, email, first_name, last_name, profile_picture, email_verified FROM \"user\" WHERE email = $1"
 	}
-}
-
-func (s *Store) GetUsersByEmail(ctx context.Context, email string) (*types.User, error) {
-	query := "SELECT id, email, first_name, last_name, profile_picture, email_verified FROM \"user\" WHERE email = $1"
 	u := &types.User{}
 	err := s.db.QueryRowContext(ctx, query, email).Scan(
 		&u.ID,
@@ -41,6 +36,7 @@ func (s *Store) GetUsersByEmail(ctx context.Context, email string) (*types.User,
 		&u.LastName,
 		&u.ProfilePicture,
 		&u.EmailVerified,
+		&u.Password,
 	)
 
 	if err != nil {
@@ -50,7 +46,7 @@ func (s *Store) GetUsersByEmail(ctx context.Context, email string) (*types.User,
 	return u, nil
 }
 
-func (s *Store) GetAllUsers() ([]types.User, error) {
+func (s *UserStore) GetAllUsers() ([]types.User, error) {
 	var u []types.User
 	query := "SELECT id, email, first_name, last_name, profile_picture, email_verified FROM \"user\" "
 
@@ -79,15 +75,11 @@ func (s *Store) GetAllUsers() ([]types.User, error) {
 	return u, nil
 }
 
-func (s *Store) CreateNewUser(ctx context.Context, payload types.RegisterUserPayload) (*types.User, error) {
+func (s *UserStore) CreateNewUser(ctx context.Context, payload types.RegisterUserPayload) (*types.User, error) {
 	user := &types.User{}
-	walletChan := make(chan []byte)
-	subAccountChan := make(chan []byte)
-	//channel := make(chan []byte, 2)
-	//var walletByte []byte
-	//var subAccountByte []byte
+	walletChan := make(chan []byte, 1)
+	subAccountChan := make(chan []byte, 1)
 	var walleturl = "https://api-v2-sandbox.chimoney.io/v0.2/multicurrency-wallets/create"
-	//var wg sync.WaitGroup
 	var subAccounturl = "https://api-v2-sandbox.chimoney.io/v0.2/sub-account/create"
 	var walletConvertedBody map[string]interface{}
 	var subAccountConvertedBody map[string]interface{}
@@ -146,9 +138,6 @@ func (s *Store) CreateNewUser(ctx context.Context, payload types.RegisterUserPay
 		return nil, err
 	}
 
-	defer close(subAccountChan)
-	defer close(walletChan)
-
 	//fmt.Println(string(<-walletChan))
 	walletData := walletConvertedBody["data"].(map[string]interface{})
 	subAccountData := subAccountConvertedBody["data"].(map[string]interface{})
@@ -196,10 +185,6 @@ func scanRowsToReturnUser(rows *sql.Rows) (*types.User, error) {
 	}
 
 	return user, nil
-}
-
-func (s *Store) GoogleAuthLoginAndRegister() error {
-	return nil
 }
 
 //func (s *Store)
