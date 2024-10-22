@@ -7,9 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/brownei/chifunds-api/service"
-	"github.com/brownei/chifunds-api/service/auth"
-	"github.com/brownei/chifunds-api/service/user"
+	"github.com/brownei/chifunds-api/store"
 	"github.com/brownei/chifunds-api/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -23,12 +21,14 @@ type application struct {
 	addr         string
 	db           *sql.DB
 	sessionStore *sessions.CookieStore
+	store        store.Store
 }
 
-func NewServer(addr string, db *sql.DB) *application {
+func NewServer(addr string, db *sql.DB, store store.Store) *application {
 	return &application{
 		addr:         addr,
 		db:           db,
+		store:        store,
 		sessionStore: sessions.NewCookieStore([]byte(os.Getenv("SECRET_KEY"))),
 	}
 }
@@ -54,9 +54,6 @@ func (a *application) Run() error {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	//All the new handlers
-	store := service.NewStore(a.db)
-	userHandler := user.NewUserHandler(store)
-	authHandler := auth.NewAuthHandler(store)
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -64,8 +61,8 @@ func (a *application) Run() error {
 			utils.WriteJSON(w, http.StatusOK, message)
 		})
 
-		r.Route("/users", userHandler.AllUsersRoutes)
-		r.Route("/auth", authHandler.AllAuthRoutes)
+		r.Route("/users", a.AllUsersRoutes)
+		r.Route("/auth", a.AllAuthRoutes)
 	})
 
 	log.Printf("Listening on %s", a.addr)
