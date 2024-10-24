@@ -1,17 +1,14 @@
 package types
 
 type User struct {
-	ID                int64    `json:"id"`
-	Email             string   `json:"email"`
-	FirstName         string   `json:"first_name"`
-	LastName          string   `json:"last_name"`
-	ProfilePicture    string   `json:"profile_picture"`
-	Password          string   `json:"password"`
-	EmailVerified     bool     `json:"email_verified"`
-	SubAccountNumber  string   `json:"subaccount_number"`
-	SubAccountNumbers []string `json:"subaccount_numbers"`
-	WalletNumber      string   `json:"wallet_number"`
-	WalletNumbers     []string `json:"wallet_numbers"`
+	ID             int64  `json:"id"`
+	Email          string `json:"email"`
+	FirstName      string `json:"first_name"`
+	LastName       string `json:"last_name"`
+	ProfilePicture string `json:"profile_picture"`
+	Password       string `json:"password"`
+	EmailVerified  bool   `json:"email_verified"`
+	AccountNumber  string `json:"account_number"`
 
 	//CreatedAt      time.Time `json:"created_at"`
 }

@@ -41,20 +41,52 @@ func AddMigrations(db *sql.DB) {
 			{
 				Id: "2",
 				Up: []string{
-					`CREATE TABLE IF NOT EXISTS "account_number" (id SERIAL PRIMARY KEY, subaccount_id VARCHAR(100) NOT NULL, subaccount_number VARCHAR(100) NOT NULL, wallet_id VARCHAR(100) NOT NULL, wallet_number VARCHAR(100) NOT NULL, user_id INT NOT NULL);`,
+					`CREATE TABLE IF NOT EXISTS "card" (id SERIAL PRIMARY KEY, serial_no VARCHAR(11) NOT NULL UNIQUE, cvc INT, expiry_date TIMESTAMP, account_id INT NOT NULL)`,
 				},
 				Down: []string{
-					`DROP TABLE IF EXISTS "account_number"`,
+					`DROP TABLE IF EXISTS "card"`,
 				},
 			},
+
 			{
 				Id: "3",
 				Up: []string{
-					`ALTER TABLE "account_number" ADD CONSTRAINT "AccountNumber_userId_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id")`,
+					`CREATE TABLE IF NOT EXISTS "account" (id SERIAL PRIMARY KEY, account_number VARCHAR(10), user_id INT NOT NULL, card_id INT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`,
 				},
 				Down: []string{
-					`ALTER TABLE "account_number" DROP CONSTRAINT IF EXISTS "AccountNumber_userId_fkey";`,
-				}},
+					`DROP TABLE IF EXISTS "account"`,
+				},
+			},
+
+			{
+				Id: "4",
+				Up: []string{
+					`ALTER TABLE "card" ADD CONSTRAINT "Card_accountId_fkey" FOREIGN KEY ("account_id") REFERENCES "account"("id")`,
+				},
+				Down: []string{
+					`ALTER TABLE "card" DROP CONSTRAINT IF EXISTS "Card_accountId_fkey"`,
+				},
+			},
+
+			{
+				Id: "5",
+				Up: []string{
+					`ALTER TABLE "account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id")`,
+				},
+				Down: []string{
+					`ALTER TABLE "account" DROP CONSTRAINT IF EXISTS "Account_userId_fkey"`,
+				},
+			},
+
+			{
+				Id: "6",
+				Up: []string{
+					`ALTER TABLE "account" ADD CONSTRAINT "Account_cardId_fkey" FOREIGN KEY ("card_id") REFERENCES "card"("id")`,
+				},
+				Down: []string{
+					`ALTER TABLE "account" DROP CONSTRAINT IF EXISTS "Account_cardId_fkey"`,
+				},
+			},
 		},
 	}
 

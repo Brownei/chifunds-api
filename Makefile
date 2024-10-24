@@ -5,4 +5,4 @@ test:
 	@go test -v ./...
 
 run: 
-	@air 
+	@go run cmd/*.go

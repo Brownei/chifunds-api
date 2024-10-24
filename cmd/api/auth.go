@@ -45,6 +45,7 @@ func (a *application) CreateAUser(w http.ResponseWriter, r *http.Request) {
 
 	//Check if user exists first
 	existingUser, err := a.store.Users.GetUsersByEmail(ctx, payload.Email, false)
+	log.Printf("existingUser: %v\n", existingUser)
 	if existingUser != nil {
 		utils.WriteError(w, http.StatusFound, fmt.Errorf("User already exists"))
 		return

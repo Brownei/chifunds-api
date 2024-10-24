@@ -4,8 +4,8 @@ tmp_dir = "bin"
 
 [build]
   args_bin = []
-  bin = "./bin/main"
-  cmd = "make build"
+  bin = "bin"
+  cmd = "make run"
   delay = 1000
   exclude_dir = ["assets", "bin", "vendor", "testdata"]
   exclude_file = []

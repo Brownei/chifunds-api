@@ -46,12 +46,13 @@ func WriteError(w http.ResponseWriter, status int, err error) {
 	WriteJSON(w, status, map[string]string{"error": err.Error()})
 }
 
-func RandomBVN() int {
-	return 10000000000 + rand.Intn(99999999999-10000000000)
+func RandomAccountNumber() string {
+	rand := 1000000 + rand.Intn(9999999-1000000)
+	return fmt.Sprintf("512%d", rand)
 }
 
 func RandomPhoneNumber() string {
-	ran := 10000000 + rand.Intn(99999999-10000000)
+	ran := 100000000 + rand.Intn(999999999-100000000)
 	return fmt.Sprintf("+23480%s", ran)
 }
 
