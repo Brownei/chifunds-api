@@ -51,19 +51,14 @@ func RandomAccountNumber() string {
 	return fmt.Sprintf("512%d", rand)
 }
 
-func RandomPhoneNumber() string {
-	ran := 100000000 + rand.Intn(999999999-100000000)
-	return fmt.Sprintf("+23480%s", ran)
-}
-
 func JwtToken(email string, ctx context.Context) string {
 	var secretKey = []byte(os.Getenv("SECRET_KEY"))
-	expiryTime := time.Hour * 168
+	expiryTime := time.Now().Add(7 * 24 * time.Hour).Unix() // 7 days in seconds
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": email,                     // Subject (user identifier)
-		"iss": "chifunds",                // Issuer
-		"exp": expiryTime.Milliseconds(), // Expiration time
-		"iat": time.Now().Unix(),         // Issued at
+		"sub": email,      // Subject (user identifier)
+		"iss": "chifunds", // Issuer
+		"exp": expiryTime,
+		"iat": time.Now().Unix(), // Issued at
 	})
 
 	token, _ := claims.SignedString(secretKey)
@@ -75,10 +70,14 @@ func JwtToken(email string, ctx context.Context) string {
 func VerifyToken(token string) (string, error) {
 	var secretKey = []byte(os.Getenv("SECRET_KEY"))
 	verifiedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			log.Printf("Error: %v", ok)
+			return "", fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
 		return secretKey, nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("Error in the verified token: %s", err.Error())
+		return "", fmt.Errorf("Error in the verified token: %s\n%v", err.Error(), verifiedToken)
 	}
 
 	// Check if the token is valid
@@ -91,4 +90,8 @@ func VerifyToken(token string) (string, error) {
 	log.Printf("VerifiedToken: %v\n", email)
 
 	return email, nil
+}
+
+func EnableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", `["http://localhost:3000"]`)
 }

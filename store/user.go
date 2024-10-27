@@ -17,10 +17,11 @@ type UserStore struct {
 
 func (s *UserStore) GetUsersByEmail(ctx context.Context, email string, forLogin bool) (*types.User, error) {
 	var query string
+	//wg := sync.WaitGroup{}
 	if forLogin == true {
-		query = `SELECT id, email, first_name, last_name, profile_picture, email_verified, password FROM "user" WHERE email = $1`
+		query = `SELECT u.id, u.email, u.first_name, u.last_name, u.profile_picture, u.email_verified, u.password, a.account_number, a.money FROM "user" AS u JOIN "account" AS a ON u.id = a.user_id WHERE u.email = $1`
 	} else {
-		query = `SELECT id, email, first_name, last_name, profile_picture, email_verified FROM "user" WHERE email = $1`
+		query = `SELECT u.id, u.email, u.first_name, u.last_name, u.profile_picture, u.email_verified, a.account_number, a.money FROM "user" AS u JOIN "account" AS a ON u.id = a.user_id WHERE u.email = $1`
 	}
 
 	u := &types.User{}
@@ -34,6 +35,8 @@ func (s *UserStore) GetUsersByEmail(ctx context.Context, email string, forLogin 
 			&u.ProfilePicture,
 			&u.EmailVerified,
 			&u.Password,
+			&u.AccountNumber,
+			&u.Balance,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("No user like this!")
@@ -49,6 +52,8 @@ func (s *UserStore) GetUsersByEmail(ctx context.Context, email string, forLogin 
 			&u.LastName,
 			&u.ProfilePicture,
 			&u.EmailVerified,
+			&u.AccountNumber,
+			&u.Balance,
 		)
 
 		if err != nil {

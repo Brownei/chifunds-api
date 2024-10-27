@@ -1,5 +1,7 @@
 package types
 
+import "context"
+
 type User struct {
 	ID             int64  `json:"id"`
 	Email          string `json:"email"`
@@ -9,8 +11,7 @@ type User struct {
 	Password       string `json:"password"`
 	EmailVerified  bool   `json:"email_verified"`
 	AccountNumber  string `json:"account_number"`
-
-	//CreatedAt      time.Time `json:"created_at"`
+	Balance        int32  `json:"balance"`
 }
 
 type LoginPayload struct {
@@ -27,10 +28,26 @@ type RegisterUserPayload struct {
 	EmailVerified  bool   `json:"email_verified"`
 }
 
-type NewChimoneySubAccount struct {
-	Email       string `json:"email"`
-	Name        string `json:"name"`
-	PhoneNumber string `json:"phoneNumber"`
-	FirstName   string `json:"firstName"`
-	LastName    string `json:"lastName"`
+type BorrowMoneyDto struct {
+	Explanation string `json:"explanation" validate:"required"`
+	Amount      int32  `json:"amount" validate:"required"`
+}
+
+type TransferMoneyDto struct {
+	Amount        int32  `json:"amount" validate:"required"`
+	AccountNumber string `json:"account_number" validate:"required"`
+}
+
+type DataPayloadFromTransferDto struct {
+	Id             int8   `json:"id"`
+	RemainingMoney int32  `json:"remaining_money"`
+	Amount         int32  `json:"amount"`
+	NameOfReceiver string `json:"name_of_receiver"`
+}
+
+type TransferJob struct {
+	Id           int
+	Query        string
+	Args         []interface{}
+	ExecuteQuery func(context.Context, string, []interface{}) error
 }

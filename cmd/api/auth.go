@@ -14,10 +14,30 @@ import (
 )
 
 func (a *application) AllAuthRoutes(r chi.Router) {
+	r.Group(func(r chi.Router) {
+		r.Use(a.AuthMiddleware)
+		r.Get("/user", a.GetCurrentUser)
+	})
 	r.Post("/signin", a.Login)
 	r.Post("/signup", a.CreateAUser)
 	r.Get("/{provider}", a.GoogleAuthLoginAndRegister)
 	r.Get("/{provider}/callback", a.ProviderAuthCallbackFunction)
+}
+
+func (a *application) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	email := ctx.Value("user").(string)
+	a.logger.Infof("Current user email: %s", email)
+
+	existingUSer, err := a.store.Users.GetUsersByEmail(ctx, email, true)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+	} else if existingUSer == nil {
+		a.logger.Infof("Current user email: %v", existingUSer)
+		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("No user like this found"))
+	}
+
+	utils.WriteJSON(w, http.StatusOK, existingUSer)
 }
 
 func (a *application) GoogleAuthLoginAndRegister(w http.ResponseWriter, r *http.Request) {
@@ -28,6 +48,7 @@ func (a *application) GoogleAuthLoginAndRegister(w http.ResponseWriter, r *http.
 
 func (a *application) CreateAUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	var payload types.RegisterUserPayload
 
 	if err := utils.ParseJSON(r, &payload); err != nil {
 		log.Printf("Error: %s", err)
@@ -92,10 +113,28 @@ func (a *application) ProviderAuthCallbackFunction(w http.ResponseWriter, r *htt
 			})
 
 			token := utils.JwtToken(gothUser.Email, ctx)
-			log.Printf("Token: %s", token)
-			utils.WriteJSON(w, http.StatusOK, token)
+			response := fmt.Sprintf(`
+        <script>
+            window.opener.postMessage({ token: "%s" }, "*");
+            window.close();
+        </script>
+    `, token)
+			//a.logger.Info(token)
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(response))
 		} else if existingUSer != nil {
-			utils.WriteJSON(w, http.StatusOK, existingUSer)
+			token := utils.JwtToken(existingUSer.Email, ctx)
+			//utils.WriteJSON(w, http.StatusOK, token)
+
+			response := fmt.Sprintf(`
+        <script>
+            window.opener.postMessage({ token: "%s" }, "*");
+            window.close();
+        </script>
+    `, token)
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(response))
+
 		}
 
 	} else {

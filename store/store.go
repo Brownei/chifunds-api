@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/brownei/chifunds-api/types"
+	"go.uber.org/zap"
 )
 
 type Store struct {
@@ -17,6 +18,11 @@ type Store struct {
 	Auth interface {
 		Login(ctx context.Context, existingUser *types.User, payload types.LoginPayload) (string, error)
 	}
+
+	Transactions interface {
+		BorrowMoney(ctx context.Context, lendedMoney int32, userId int8) error
+		TransferMoney(context.Context, *zap.SugaredLogger, types.User, int32, string) error
+	}
 }
 
 var (
@@ -25,7 +31,8 @@ var (
 
 func NewStore(db *sql.DB) Store {
 	return Store{
-		Users: &UserStore{db},
-		Auth:  &AuthStore{db},
+		Users:        &UserStore{db},
+		Auth:         &AuthStore{db},
+		Transactions: &TransactionStore{db},
 	}
 }
