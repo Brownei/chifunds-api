@@ -22,6 +22,8 @@ type Store struct {
 	Transactions interface {
 		BorrowMoney(ctx context.Context, lendedMoney int32, userId int8) error
 		TransferMoney(context.Context, *zap.SugaredLogger, types.User, int32, string) error
+		GetReceivedTransactions(context.Context, string) (*types.ReceivedTransactions, error)
+		GetSentTransactions(context.Context, string) (*types.SentTransactions, error)
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/brownei/chifunds-api/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -33,6 +34,34 @@ func ParseJSON(r *http.Request, payload any) error {
 	}
 
 	return json.NewDecoder(r.Body).Decode(payload)
+}
+
+func DecryptAndParseJson(r *http.Request, decryptFunc func(string) ([]byte, error)) ([]byte, error) {
+	var payload types.DataPayload
+	if r.Body == nil {
+		log.Printf("Missing body data")
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		return nil, err
+	}
+
+	decryptedData, err := decryptFunc(payload.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	return decryptedData, nil
+}
+
+func EncryptAndWriteJson(w http.ResponseWriter, status int, byteTrans []byte, encryptFunc func([]byte) (string, error)) error {
+	encrypted, err := encryptFunc(byteTrans)
+	if err != nil {
+		return err
+	}
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(status)
+	return json.NewEncoder(w).Encode(encrypted)
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {

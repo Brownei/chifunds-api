@@ -1,6 +1,9 @@
 package types
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type User struct {
 	ID             int64  `json:"id"`
@@ -38,6 +41,20 @@ type TransferMoneyDto struct {
 	AccountNumber string `json:"account_number" validate:"required"`
 }
 
+type ReceivedTransactions struct {
+	Amount            int32     `json:"amount"`
+	ReceiverFirstName string    `json:"receiver_first_name"`
+	ReceiverLastName  string    `json:"receiver_last_name"`
+	SentAt            time.Time `json:"sent_at"`
+}
+
+type SentTransactions struct {
+	Amount            int32     `json:"amount"`
+	ReceiverFirstName string    `json:"receiver_first_name"`
+	ReceiverLastName  string    `json:"receiver_last_name"`
+	SentAt            time.Time `json:"sent_at"`
+}
+
 type DataPayloadFromTransferDto struct {
 	Id             int8   `json:"id"`
 	RemainingMoney int32  `json:"remaining_money"`
@@ -50,4 +67,8 @@ type TransferJob struct {
 	Query        string
 	Args         []interface{}
 	ExecuteQuery func(context.Context, string, []interface{}) error
+}
+
+type DataPayload struct {
+	Data string `json:"data"`
 }

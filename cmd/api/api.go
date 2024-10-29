@@ -71,6 +71,11 @@ func (a *application) Run() error {
 			utils.WriteJSON(w, http.StatusOK, message)
 		})
 
+		r.Group(func(r chi.Router) {
+			r.Use(a.PublicKeyMiddleware)
+			r.Get("/all-keys", a.GetAllKeysHandler)
+		})
+
 		r.Route("/users", a.AllUsersRoutes)
 		r.Route("/transactions", a.AllTransactionRoutes)
 		r.Route("/auth", a.AllAuthRoutes)

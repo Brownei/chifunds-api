@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -12,17 +13,30 @@ import (
 
 func (a *application) AllTransactionRoutes(r chi.Router) {
 	r.Use(a.AuthMiddleware)
+	r.Post("/transfer-money", a.TransferFunds)
 	r.Post("/borrow-money", a.BorrowMoneyFromUs)
+	r.Get("/received", a.GetReceivedTransactions)
+	r.Get("/sent", a.GetSentTransactions)
 }
 
 func (a *application) BorrowMoneyFromUs(w http.ResponseWriter, r *http.Request) {
 	var payload types.BorrowMoneyDto
 	ctx := r.Context()
 	email := ctx.Value("user").(string)
-	if err := utils.ParseJSON(r, &payload); err != nil {
+
+	decryptedData, err := utils.DecryptAndParseJson(r, RsaDecrypt)
+	if err != nil {
+		a.logger.Errorf("DECRYT ERROR: %v", err)
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
+
+	if err := json.Unmarshal(decryptedData, &payload); err != nil {
+		a.logger.Errorf("Unmarshall data error: %v", err)
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
 	if err := utils.Validator.Struct(payload); err != nil {
 		errors := err.(validator.ValidationErrors)
 		fmt.Printf("Error: %s", errors)
@@ -42,14 +56,28 @@ func (a *application) BorrowMoneyFromUs(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusAccepted, "Successful")
+	utils.EncryptAndWriteJson(w, http.StatusAccepted, []byte("Successfully"), RsaEncrypt)
+	//utils.WriteJSON(w, http.StatusAccepted, "Successful")
 }
 
 func (a *application) TransferFunds(w http.ResponseWriter, r *http.Request) {
-	var payload types.TransferMoneyDto
 	ctx := r.Context()
 	currentUserEmail := ctx.Value("user").(string)
 
+	decryptedData, err := utils.DecryptAndParseJson(r, RsaDecrypt)
+	if err != nil {
+		a.logger.Errorf("DECRYT ERROR: %v", err)
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	var payload types.TransferMoneyDto
+	if err := json.Unmarshal(decryptedData, &payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	a.logger.Info(payload)
 	if err := utils.Validator.Struct(payload); err != nil {
 		errors := err.(validator.ValidationErrors)
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("Invalid payload: %v", errors))
@@ -67,5 +95,34 @@ func (a *application) TransferFunds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, fmt.Sprintf("Successfully sent money to %s"))
+	utils.EncryptAndWriteJson(w, http.StatusAccepted, []byte("Successfully sent money"), RsaEncrypt)
+	//utils.WriteJSON(w, http.StatusOK, fmt.Sprintf("Successfully sent money"))
+}
+
+func (a *application) GetReceivedTransactions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	email := ctx.Value("email").(string)
+
+	transactions, err := a.store.Transactions.GetReceivedTransactions(ctx, email)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+	}
+
+	byteTransactions, err := json.Marshal(transactions)
+
+	utils.EncryptAndWriteJson(w, http.StatusOK, byteTransactions, RsaEncrypt)
+}
+
+func (a *application) GetSentTransactions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	email := ctx.Value("email").(string)
+
+	transactions, err := a.store.Transactions.GetSentTransactions(ctx, email)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+	}
+
+	byteTransactions, err := json.Marshal(transactions)
+
+	utils.EncryptAndWriteJson(w, http.StatusOK, byteTransactions, RsaEncrypt)
 }

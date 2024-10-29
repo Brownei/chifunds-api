@@ -39,7 +39,11 @@ func (s *UserStore) GetUsersByEmail(ctx context.Context, email string, forLogin 
 			&u.Balance,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("No user like this!")
+			if err == sql.ErrNoRows {
+				return nil, fmt.Errorf("No user like this!")
+			}
+
+			return nil, err
 		}
 
 		return u, nil
