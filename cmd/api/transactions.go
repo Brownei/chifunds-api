@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -101,28 +102,49 @@ func (a *application) TransferFunds(w http.ResponseWriter, r *http.Request) {
 
 func (a *application) GetReceivedTransactions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	email := ctx.Value("email").(string)
+	email := ctx.Value("user").(string)
 
 	transactions, err := a.store.Transactions.GetReceivedTransactions(ctx, email)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.WriteJSON(w, http.StatusOK, fmt.Sprintf("No transactions received"))
+		}
+		a.logger.Info(err)
 		utils.WriteError(w, http.StatusBadRequest, err)
+		return
 	}
 
 	byteTransactions, err := json.Marshal(transactions)
+	if err != nil {
+		a.logger.Info(err)
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
 
 	utils.EncryptAndWriteJson(w, http.StatusOK, byteTransactions, RsaEncrypt)
 }
 
 func (a *application) GetSentTransactions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	email := ctx.Value("email").(string)
+	email := ctx.Value("user").(string)
 
 	transactions, err := a.store.Transactions.GetSentTransactions(ctx, email)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.WriteJSON(w, http.StatusOK, fmt.Sprintf("No transactions sent"))
+			return
+		}
+		a.logger.Info(err)
 		utils.WriteError(w, http.StatusBadRequest, err)
+		return
 	}
 
 	byteTransactions, err := json.Marshal(transactions)
+	if err != nil {
+		a.logger.Info(err)
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
 
 	utils.EncryptAndWriteJson(w, http.StatusOK, byteTransactions, RsaEncrypt)
 }

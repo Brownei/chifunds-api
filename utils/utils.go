@@ -54,14 +54,13 @@ func DecryptAndParseJson(r *http.Request, decryptFunc func(string) ([]byte, erro
 	return decryptedData, nil
 }
 
-func EncryptAndWriteJson(w http.ResponseWriter, status int, byteTrans []byte, encryptFunc func([]byte) (string, error)) error {
+func EncryptAndWriteJson(w http.ResponseWriter, status int, byteTrans []byte, encryptFunc func([]byte) (string, error)) {
 	encrypted, err := encryptFunc(byteTrans)
 	if err != nil {
-		return err
+		WriteError(w, http.StatusBadGateway, err)
 	}
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(encrypted)
+
+	WriteJSON(w, status, encrypted)
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {

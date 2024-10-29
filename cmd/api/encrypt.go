@@ -36,17 +36,12 @@ func RsaEncrypt(origData []byte) (string, error) {
 		return "", errors.New("failed to parse public key PEM")
 	}
 
-	pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+	pubInterface, err := x509.ParsePKCS1PublicKey(block.Bytes)
 	if err != nil {
 		return "", fmt.Errorf("public key parsing error: %v", err)
 	}
 
-	pub, ok := pubInterface.(*rsa.PublicKey)
-	if !ok {
-		return "", errors.New("not a valid RSA public key")
-	}
-
-	encryptedData, err := rsa.EncryptPKCS1v15(rand.Reader, pub, origData)
+	encryptedData, err := rsa.EncryptPKCS1v15(rand.Reader, pubInterface, origData)
 	if err != nil {
 		return "", fmt.Errorf("encryption error: %v", err)
 	}

@@ -108,9 +108,7 @@ func (s *TransactionStore) GetReceivedTransactions(ctx context.Context, email st
 		&transactions.ReceiverFirstName,
 		&transactions.ReceiverLastName,
 	); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("No transactions received!")
-		}
+		return nil, err
 	}
 
 	return transactions, nil
@@ -126,9 +124,8 @@ func (s *TransactionStore) GetSentTransactions(ctx context.Context, email string
 		&transactions.ReceiverFirstName,
 		&transactions.ReceiverLastName,
 	); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("No transactions received!")
-		}
+		return nil, err
+
 	}
 
 	return transactions, nil
