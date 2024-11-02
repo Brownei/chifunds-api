@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -54,13 +56,18 @@ func DecryptAndParseJson(r *http.Request, decryptFunc func(string) ([]byte, erro
 	return decryptedData, nil
 }
 
-func EncryptAndWriteJson(w http.ResponseWriter, status int, byteTrans []byte, encryptFunc func([]byte) (string, error)) {
-	encrypted, err := encryptFunc(byteTrans)
+func EncryptAndWriteJson(w http.ResponseWriter, status int, byteTrans []byte, encryptFunc func([]byte) (string, string, error)) {
+	encrypted, key, err := encryptFunc(byteTrans)
 	if err != nil {
 		WriteError(w, http.StatusBadGateway, err)
 	}
 
-	WriteJSON(w, status, encrypted)
+	payload := types.EncryptedDataPayload{
+		Encrypted: encrypted,
+		AesKey:    key,
+	}
+
+	WriteJSON(w, status, payload)
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
@@ -120,6 +127,13 @@ func VerifyToken(token string) (string, error) {
 	return email, nil
 }
 
-func EnableCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", `["http://localhost:3000"]`)
+func StructToBytes(data any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }

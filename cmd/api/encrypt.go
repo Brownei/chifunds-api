@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -8,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -29,24 +32,46 @@ func HashPassword(password string) (string, error) {
 	return string(hash), nil
 }
 
-func RsaEncrypt(origData []byte) (string, error) {
+func RsaEncrypt(origData []byte) (string, string, error) {
 	publicKey, err := os.ReadFile("public.pem")
 	block, _ := pem.Decode(publicKey)
 	if block == nil {
-		return "", errors.New("failed to parse public key PEM")
+		return "", "", errors.New("failed to parse public key PEM")
 	}
 
 	pubInterface, err := x509.ParsePKCS1PublicKey(block.Bytes)
 	if err != nil {
-		return "", fmt.Errorf("public key parsing error: %v", err)
+		return "", "", fmt.Errorf("public key parsing error: %v", err)
 	}
 
-	encryptedData, err := rsa.EncryptPKCS1v15(rand.Reader, pubInterface, origData)
+	aesKey := make([]byte, 32) // Use AES-256 (32 bytes key)
+	if _, err := io.ReadFull(rand.Reader, aesKey); err != nil {
+		return "", "", fmt.Errorf("AES key generation error: %v", err)
+	}
+
+	encryptedAesKey, err := rsa.EncryptPKCS1v15(rand.Reader, pubInterface, aesKey)
 	if err != nil {
-		return "", fmt.Errorf("encryption error: %v", err)
+		return "", "", fmt.Errorf("encryption error: %v", err)
 	}
 
-	return base64.StdEncoding.EncodeToString(encryptedData), nil
+	blockCipher, err := aes.NewCipher(aesKey)
+	if err != nil {
+		return "", "", fmt.Errorf("AES cipher creation error: %v", err)
+	}
+
+	gcm, err := cipher.NewGCM(blockCipher)
+	if err != nil {
+		return "", "", fmt.Errorf("GCM mode creation error: %v", err)
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", "", fmt.Errorf("nonce generation error: %v", err)
+	}
+
+	encryptedData := gcm.Seal(nonce, nonce, origData, nil)
+
+	return base64.StdEncoding.EncodeToString(encryptedData), base64.StdEncoding.EncodeToString(encryptedAesKey), nil
 }
 
 func RsaDecrypt(body string) ([]byte, error) {

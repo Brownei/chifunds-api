@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/brownei/chifunds-api/types"
 	"github.com/brownei/chifunds-api/utils"
@@ -18,6 +19,7 @@ func (a *application) AllTransactionRoutes(r chi.Router) {
 	r.Post("/borrow-money", a.BorrowMoneyFromUs)
 	r.Get("/received", a.GetReceivedTransactions)
 	r.Get("/sent", a.GetSentTransactions)
+	r.Get("/borrowed", a.GetBorrowedTransactions)
 }
 
 func (a *application) BorrowMoneyFromUs(w http.ResponseWriter, r *http.Request) {
@@ -51,11 +53,18 @@ func (a *application) BorrowMoneyFromUs(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := a.store.Transactions.BorrowMoney(ctx, payload.Amount, int8(existingUser.ID)); err != nil {
+	if err := a.store.Transactions.BorrowMoney(ctx, a.logger, payload.Amount, int8(existingUser.ID)); err != nil {
 		a.logger.Info(err)
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
+
+	balance, err := a.store.Users.GetBalance(ctx, existingUser.Email)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+	broadcastBalanceUpdate(strconv.Itoa(balance.Amount))
 
 	utils.EncryptAndWriteJson(w, http.StatusAccepted, []byte("Successfully"), RsaEncrypt)
 	//utils.WriteJSON(w, http.StatusAccepted, "Successful")
@@ -96,6 +105,14 @@ func (a *application) TransferFunds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	balance, err := a.store.Users.GetBalance(ctx, existingUser.Email)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	broadcastBalanceUpdate(strconv.Itoa(balance.Amount))
+
 	utils.EncryptAndWriteJson(w, http.StatusAccepted, []byte("Successfully sent money"), RsaEncrypt)
 	//utils.WriteJSON(w, http.StatusOK, fmt.Sprintf("Successfully sent money"))
 }
@@ -108,20 +125,32 @@ func (a *application) GetReceivedTransactions(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		if err == sql.ErrNoRows {
 			utils.WriteJSON(w, http.StatusOK, fmt.Sprintf("No transactions received"))
+			return
 		}
 		a.logger.Info(err)
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
 
-	byteTransactions, err := json.Marshal(transactions)
+	utils.WriteJSON(w, http.StatusOK, transactions)
+}
+
+func (a *application) GetBorrowedTransactions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	transactions, err := a.store.Transactions.GetBorrowedTransactions(ctx)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.WriteJSON(w, http.StatusOK, fmt.Sprintf("You do not want to borow money yet"))
+			return
+		}
 		a.logger.Info(err)
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
+	a.logger.Infof("Transactions Borrowed: %v", transactions)
 
-	utils.EncryptAndWriteJson(w, http.StatusOK, byteTransactions, RsaEncrypt)
+	utils.WriteJSON(w, http.StatusOK, transactions)
 }
 
 func (a *application) GetSentTransactions(w http.ResponseWriter, r *http.Request) {
@@ -139,12 +168,5 @@ func (a *application) GetSentTransactions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	byteTransactions, err := json.Marshal(transactions)
-	if err != nil {
-		a.logger.Info(err)
-		utils.WriteError(w, http.StatusBadRequest, err)
-		return
-	}
-
-	utils.EncryptAndWriteJson(w, http.StatusOK, byteTransactions, RsaEncrypt)
+	utils.WriteJSON(w, http.StatusOK, transactions)
 }

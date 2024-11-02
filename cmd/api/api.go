@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/brownei/chifunds-api/store"
+	"github.com/brownei/chifunds-api/types"
 	"github.com/brownei/chifunds-api/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -25,15 +26,22 @@ type application struct {
 	sessionStore *sessions.CookieStore
 	store        store.Store
 	logger       *zap.SugaredLogger
+	sseChannel   *types.SSEChannel
 }
 
 func NewServer(addr string, logger *zap.SugaredLogger, db *sql.DB, store store.Store) *application {
+	sseChannel := &types.SSEChannel{
+		Notifier: make(chan string),
+		Clients:  make([]chan string, 0),
+	}
+
 	return &application{
 		addr:         addr,
 		db:           db,
 		store:        store,
 		sessionStore: sessions.NewCookieStore([]byte(os.Getenv("SECRET_KEY"))),
 		logger:       logger,
+		sseChannel:   sseChannel,
 	}
 }
 
@@ -51,7 +59,7 @@ func (a *application) Run() error {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:5173"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -65,6 +73,8 @@ func (a *application) Run() error {
 
 	//All the new handlers
 	r.Route("/v1", func(r chi.Router) {
+
+		r.Get("/balance", SseRoute)
 
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			message := "ChiFunds Api"
@@ -83,4 +93,20 @@ func (a *application) Run() error {
 
 	log.Printf("Listening on %s", a.addr)
 	return http.ListenAndServe(a.addr, r)
+}
+
+func (a *application) CreateChiFundsUser() error {
+	creatingNewUserQuery := `INSERT INTO "user" (email, first_name, last_name, profile_picture, password, email_verified) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, first_name, last_name, profile_picture, email_verified`
+
+	_, err := a.db.Query(creatingNewUserQuery, "chifundsadmin@gmail.com", "ChiFunds", "Funding", "", "sfhkbhagassvnldfhdgklhdhguytigndnb", true)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+
+		return err
+	}
+
+	log.Printf("Admin user created!")
+	return nil
 }

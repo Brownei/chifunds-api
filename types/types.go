@@ -5,6 +5,20 @@ import (
 	"time"
 )
 
+type SSEChannel struct {
+	Notifier chan string
+	Clients  []chan string
+}
+
+type Balance struct {
+	Amount int `json:"amount"`
+}
+
+type EncryptedDataPayload struct {
+	Encrypted string `json:"encrypted"`
+	AesKey    string `json:"aesKey"`
+}
+
 type User struct {
 	ID             int64  `json:"id"`
 	Email          string `json:"email"`
@@ -42,10 +56,15 @@ type TransferMoneyDto struct {
 }
 
 type ReceivedTransactions struct {
-	Amount            int32     `json:"amount"`
-	ReceiverFirstName string    `json:"receiver_first_name"`
-	ReceiverLastName  string    `json:"receiver_last_name"`
-	SentAt            time.Time `json:"sent_at"`
+	Amount          int32     `json:"amount"`
+	SenderFirstName string    `json:"sender_first_name"`
+	SenderLastName  string    `json:"sender_last_name"`
+	SentAt          time.Time `json:"sent_at"`
+}
+
+type BorrowedTransactions struct {
+	Amount int32     `json:"amount"`
+	SentAt time.Time `json:"sent_at"`
 }
 
 type SentTransactions struct {

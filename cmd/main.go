@@ -33,8 +33,14 @@ func main() {
 		log.Printf("Error generating keys: %v", err)
 	}
 
+	if err := store.CreateChiFundsUser(); err != nil {
+		logger.Errorf("Failed to create Chifunds user: %v", err)
+		return
+	}
+
 	server := api.NewServer(":8000", logger, newDb, store)
 	if err := server.Run(); err != nil {
 		log.Printf("Cannot start up server: %s", err)
 	}
+
 }

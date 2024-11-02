@@ -14,18 +14,26 @@ type TransactionStore struct {
 	store *sql.DB
 }
 
-func (s *TransactionStore) BorrowMoney(ctx context.Context, lendedMoney int32, userId int8) error {
-	var accountId int
-	if err := s.store.QueryRowContext(
-		ctx,
-		`UPDATE "account" SET money = money + $1 WHERE user_id = $2 RETURNING id`,
-		lendedMoney,
-		userId,
-	).Scan(
-		&accountId,
-	); err != nil {
-		return err
+func (s *TransactionStore) BorrowMoney(ctx context.Context, logger *zap.SugaredLogger, lendedMoney int32, userId int8) error {
+	transactionWorker := worker.NewWorker(ctx, logger)
+
+	jobs := []types.TransferJob{
+		{
+			Id:           1,
+			Query:        `UPDATE "account" SET money = money + $1 WHERE user_id = $2 RETURNING id`,
+			ExecuteQuery: s.ExecuteQuery,
+			Args:         []interface{}{lendedMoney, userId},
+		},
+		{
+			Id:           1,
+			Query:        `INSERT INTO "transactions" (receiver_id, sender_id, amount_sent) VALUES ($1, $2, $3) RETURNING id`,
+			ExecuteQuery: s.ExecuteQuery,
+			Args:         []interface{}{userId, 1, lendedMoney},
+		},
 	}
+
+	transactionWorker.RunQueriesWithWorkerPool(jobs, len(jobs))
+
 	return nil
 }
 
@@ -98,35 +106,76 @@ func (s *TransactionStore) GetAccountFromAccountNumber(ctx context.Context, acco
 	return user, nil
 }
 
-func (s *TransactionStore) GetReceivedTransactions(ctx context.Context, email string) (*types.ReceivedTransactions, error) {
-	transactions := &types.ReceivedTransactions{}
-	query := `SELECT t.amount_sent, t.sent_at, r.first_name, r.last_name FROM "user" AS r JOIN "transactions" AS t ON t.receiver_id = r.id WHERE email = $1`
+func (s *TransactionStore) GetReceivedTransactions(ctx context.Context, email string) ([]types.ReceivedTransactions, error) {
+	var allTransactions []types.ReceivedTransactions
+	query := `SELECT t.amount_sent, t.sent_at, r.first_name, r.last_name FROM "user" AS r JOIN "transactions" AS t ON t.receiver_id = r.id WHERE r.email = $1 AND t.sender_id != 1`
 
-	if err := s.store.QueryRowContext(ctx, query, email).Scan(
-		&transactions.Amount,
-		&transactions.SentAt,
-		&transactions.ReceiverFirstName,
-		&transactions.ReceiverLastName,
-	); err != nil {
+	rows, err := s.store.Query(query, email)
+	if err != nil {
 		return nil, err
 	}
 
-	return transactions, nil
+	for rows.Next() {
+		var transactions types.ReceivedTransactions
+		if err := rows.Scan(
+			&transactions.Amount,
+			&transactions.SentAt,
+			&transactions.SenderFirstName,
+			&transactions.SenderLastName,
+		); err != nil {
+			return nil, err
+		}
+
+		allTransactions = append(allTransactions, transactions)
+	}
+
+	return allTransactions, nil
 }
 
-func (s *TransactionStore) GetSentTransactions(ctx context.Context, email string) (*types.SentTransactions, error) {
-	transactions := &types.SentTransactions{}
+func (s *TransactionStore) GetSentTransactions(ctx context.Context, email string) ([]types.SentTransactions, error) {
+	var allTransactions []types.SentTransactions
 	query := `SELECT t.amount_sent, t.sent_at, r.first_name, r.last_name FROM "user" AS r JOIN "transactions" AS t ON t.sender_id = r.id WHERE email = $1`
 
-	if err := s.store.QueryRowContext(ctx, query, email).Scan(
-		&transactions.Amount,
-		&transactions.SentAt,
-		&transactions.ReceiverFirstName,
-		&transactions.ReceiverLastName,
-	); err != nil {
+	rows, err := s.store.Query(query, email)
+	if err != nil {
 		return nil, err
-
 	}
 
-	return transactions, nil
+	for rows.Next() {
+		var transactions types.SentTransactions
+		if err := rows.Scan(
+			&transactions.Amount,
+			&transactions.SentAt,
+			&transactions.ReceiverFirstName,
+			&transactions.ReceiverLastName,
+		); err != nil {
+			return nil, err
+		}
+
+		allTransactions = append(allTransactions, transactions)
+	}
+	return allTransactions, nil
+}
+
+func (s *TransactionStore) GetBorrowedTransactions(ctx context.Context) ([]types.BorrowedTransactions, error) {
+	var allTransactions []types.BorrowedTransactions
+	query := `SELECT t.amount_sent, t.sent_at FROM "user" AS r JOIN "transactions" AS t ON t.receiver_id = r.id WHERE t.sender_id = $1`
+
+	rows, err := s.store.Query(query, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var transactions types.BorrowedTransactions
+		if err := rows.Scan(
+			&transactions.Amount,
+			&transactions.SentAt,
+		); err != nil {
+			return nil, err
+		}
+
+		allTransactions = append(allTransactions, transactions)
+	}
+	return allTransactions, nil
 }
