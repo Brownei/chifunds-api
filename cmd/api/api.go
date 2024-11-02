@@ -50,7 +50,7 @@ func (a *application) Run() error {
 	gothic.Store = a.sessionStore
 
 	goth.UseProviders(
-		google.New(os.Getenv("GOOGLE_KEY"), os.Getenv("GOOGLE_SECRET"), "https://chifunds.vercel.app/auth/google/callback", "email", "profile"),
+		google.New(os.Getenv("GOOGLE_KEY"), os.Getenv("GOOGLE_SECRET"), "https://chifunds-api.onrender.com/v1/auth/google/callback", "email", "profile"),
 	)
 
 	// A good base middleware stack
