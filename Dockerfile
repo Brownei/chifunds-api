@@ -21,9 +21,6 @@ FROM alpine:latest
 # Set environment variables for your app
 ENV PORT=8000
 
-# Install SSL certificates to support HTTPS if needed
-RUN apk add --no-cache ca-certificates
-
 # Copy the built Go binary from the builder stage
 COPY --from=builder /app/app /app/app
 
