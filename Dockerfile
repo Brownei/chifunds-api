@@ -1,5 +1,5 @@
 # The build stage
-FROM golang:1.23 as builder
+FROM golang:1.23
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -17,10 +17,6 @@ RUN go build -o app ./cmd/api
 
 # Set environment variables for your app
 ENV PORT=8000
-
-# Copy the built Go binary from the builder stage
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /app/api .
 
 # Expose the port your app will run on
 EXPOSE 8000
