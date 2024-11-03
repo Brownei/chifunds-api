@@ -15,9 +15,6 @@ COPY . .
 # Build the application in release mode
 RUN go build -o app ./cmd/api
 
-# Set environment variables for your app
-ENV PORT=8000
-
 # Expose the port your app will run on
 EXPOSE 8000
 
