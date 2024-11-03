@@ -15,14 +15,12 @@ COPY . .
 # Build the application in release mode
 RUN go build -o app ./cmd/api
 
-# Use a minimal image for the final build (scratch or Alpine)
-FROM alpine:latest
-
 # Set environment variables for your app
 ENV PORT=8000
 
 # Copy the built Go binary from the builder stage
-COPY --from=builder /app/app /app/app
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /app/api .
 
 # Expose the port your app will run on
 EXPOSE 8000
